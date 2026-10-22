@@ -1,5 +1,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <cmath>
+#include <glm/ext/matrix_float2x2_precision.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -102,10 +104,19 @@ int main() {
   const int colorLoc =
       glGetUniformLocation(shader.ID, "uColor"); // Cache color uniform
 
+  float cameraAngle = 0.0f;
+  float cameraYAngle = glm::radians(-25.0f);
+  float cameraDistance = 3.0f;
+  float cameraSpeed = 2.0f;
+
+  float lastTime = glfwGetTime();
   // --- RENDER LOOP ---
   while (!glfwWindowShouldClose(window)) {
     glfwGetFramebufferSize(window, &width, &height);
     float aspect = (float)width / (float)height;
+    double currentTime = glfwGetTime();
+    float dt = float(currentTime - lastTime);
+    lastTime = currentTime;
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -114,10 +125,35 @@ int main() {
 
     glm::mat4 projection =
         glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
-    glm::mat4 view =
-        glm::lookAt(glm::vec3(0.0f, 1.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                    glm::vec3(0.0f, 1.0f, 0.0f));
 
+    float hemisphere =
+        (glm::cos(cameraYAngle) >= 0.0f) ? 1.0f : -1.0f; // 1 = north, 1 = south
+    if (glfwGetKey(window, GLFW_KEY_LEFT))
+      cameraAngle -= cameraSpeed * dt * hemisphere;
+    else if (glfwGetKey(window, GLFW_KEY_RIGHT))
+      cameraAngle += cameraSpeed * dt * hemisphere;
+
+    if (glfwGetKey(window, GLFW_KEY_UP))
+      cameraYAngle -= cameraSpeed * dt;
+    else if (glfwGetKey(window, GLFW_KEY_DOWN))
+      cameraYAngle += cameraSpeed * dt;
+
+    cameraAngle = glm::mod(cameraAngle, glm::two_pi<float>());
+    cameraYAngle = glm::mod(cameraYAngle, glm::two_pi<float>());
+
+    glm::mat4 rotation = glm::mat4(1.0f);
+    rotation = glm::rotate(rotation, cameraAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+    rotation = glm::rotate(rotation, cameraYAngle, glm::vec3(1.0f, 0.0f, 0.0f));
+
+    glm::vec3 camPos = glm::vec3(
+        rotation *
+        glm::vec4(
+            0.0f, 0.0f, cameraDistance,
+            1.0f)); // w means position/point , while w = 0.0f would be a vector
+
+    glm::vec3 up = glm::vec3(rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
+
+    glm::mat4 view = glm::lookAt(camPos, glm::vec3(0.0f, 0.0f, 0.0f), up);
     glUniform4f(colorLoc, 0.0f, 0.6f, 0.9f, 1.0f);
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
@@ -125,26 +161,11 @@ int main() {
     glBindVertexArray(VAO);
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // wireframe
 
+    // CUBE
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 0.0f));
-    model =
-        glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-
-    float time = (float)glfwGetTime();
-
-    glm::mat4 model2 = glm::mat4(1.0f);
-    model2 = glm::translate(model2, glm::vec3(1.0f, 0.0f, 0.0f));
-    model2 =
-        glm::rotate(model2, time * 1.0f, glm::vec3(1.0f, 0.0f, 0.0f)); // Pitch
-    model2 =
-        glm::rotate(model2, time * 1.3f, glm::vec3(0.0f, 1.0f, 0.0f)); // Yaw
-    model2 =
-        glm::rotate(model2, time * 0.7f, glm::vec3(0.0f, 0.0f, 1.0f)); // Roll
-
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model2));
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
     glfwSwapBuffers(window);

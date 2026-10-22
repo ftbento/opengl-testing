@@ -6,7 +6,8 @@ build:
 	ln -sfn build/compile_commands.json compile_commands.json
 
 run: build
-	./build/3DTest
+	mangohud ./build/3DTest
+#	vblank_mode=0 mangohud ./build/3DTest
 
 clean:
 	rm -rf build compile_commands.json
