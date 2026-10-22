@@ -9,5 +9,8 @@ run: build
 	mangohud ./build/3DTest
 #	vblank_mode=0 mangohud ./build/3DTest
 
+run-wsl: build
+	nix run --impure github:guibou/nixGL -- ./build/3DTest
+
 clean:
 	rm -rf build compile_commands.json
